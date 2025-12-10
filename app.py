@@ -13,18 +13,37 @@ import re
 app = Flask(__name__)
 CORS(app)
 
-# === Load Models ===
+# === Load All Models (Phishing, SQL Injection, XSS) ===
 try:
+    # ---- Load Phishing Model (XGBoost) ----
     xgb_model = xgb.XGBClassifier()
     xgb_model.load_model('models/phishing_model.json')
 
+    # ---- Load SQL Injection Model (BiLSTM + Attention / CNN-GRU) ----
     sql_model = load_model('models/sql_injection_model.h5')
 
     with open('models/tokenizer.pkl', 'rb') as f:
         tokenizer = pickle.load(f)
 
+    print("✔ Phishing and SQL Injection models loaded successfully.")
+
+    # ---- Load XSS Detection Model (Random Forest + TF-IDF) ----
+    try:
+        with open('models/xss_random_forest_model.pkl', 'rb') as f:
+            xss_model = pickle.load(f)
+
+        with open('models/xss_tfidf_vectorizer.pkl', 'rb') as f:
+            xss_vectorizer = pickle.load(f)
+        
+        print("✔ XSS models loaded successfully.")
+    except Exception as xss_error:
+        print(f"⚠ XSS models failed to load: {xss_error}")
+        print("⚠ XSS detection will be unavailable.")
+        xss_model = None
+        xss_vectorizer = None
+
 except Exception as e:
-    print(f"[Model Load Error] {e}")
+    print(f"[Critical Model Load Error] {e}")
     raise
 
 # === Feature Extraction for Phishing Detection ===
@@ -204,6 +223,85 @@ def predict_sql():
 
     except Exception as e:
         print(f"[SQL Prediction Error] {e}")
+        return jsonify({'error': str(e)}), 500
+
+# === XSS Detection Endpoint ===
+@app.route('/predict/xss', methods=['POST'])
+def predict_xss():
+    if xss_model is None or xss_vectorizer is None:
+        # Instead of returning 503, provide a rule-based fallback
+        data = request.get_json()
+        payload = data.get('payload', '')
+
+        if not payload.strip():
+            return jsonify({'error': 'No payload provided'}), 400
+
+        try:
+            # Simple rule-based XSS detection as fallback
+            clean_payload = payload.strip().lower()
+            
+            # XSS patterns to detect
+            xss_patterns = [
+                '<script', 'javascript:', 'onerror=', 'onload=', 'onclick=',
+                'onmouseover=', '<iframe', 'alert(', 'eval(', 'document.cookie',
+                'document.write', '<img', 'src=', 'vbscript:', '<object', '<embed'
+            ]
+            
+            detected_patterns = []
+            for pattern in xss_patterns:
+                if pattern in clean_payload:
+                    detected_patterns.append(pattern)
+            
+            if detected_patterns:
+                pred = 1  # XSS detected
+                confidence = min(0.7 + (len(detected_patterns) * 0.05), 0.95)
+            else:
+                pred = 0  # Safe
+                confidence = 0.8
+            
+            label_map = {0: "Normal", 1: "XSS Attack"}
+
+            return jsonify({
+                "prediction": int(pred),
+                "label": label_map[int(pred)],
+                "confidence": float(confidence),
+                "preprocessed": clean_payload,
+                "note": "Using rule-based detection (ML model not available)"
+            })
+
+        except Exception as e:
+            print(f"[XSS Prediction Error] {e}")
+            return jsonify({'error': str(e)}), 500
+    
+    # Original ML-based code
+    data = request.get_json()
+    payload = data.get('payload', '')
+
+    if not payload.strip():
+        return jsonify({'error': 'No payload provided'}), 400
+
+    try:
+        clean_payload = payload.strip().lower()
+        vectorized = xss_vectorizer.transform([clean_payload])
+        pred = xss_model.predict(vectorized)[0]
+        prob = xss_model.predict_proba(vectorized)[0][pred]
+
+        label_map = {0: "Normal", 1: "XSS Attack"}
+
+        print("\n[DEBUG] XSS Payload:", clean_payload)
+        print("[DEBUG] Vector Shape:", vectorized.shape)
+        print("[DEBUG] Prediction:", pred)
+        print("[DEBUG] Confidence:", prob)
+
+        return jsonify({
+            "prediction": int(pred),
+            "label": label_map[int(pred)],
+            "confidence": float(prob),
+            "preprocessed": clean_payload
+        })
+
+    except Exception as e:
+        print(f"[XSS Prediction Error] {e}")
         return jsonify({'error': str(e)}), 500
 
 if __name__ == '__main__':

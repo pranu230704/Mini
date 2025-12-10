@@ -3,7 +3,6 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <base href="/" />
   <title>Intelligent Threat Identification System</title>
   <link
     rel="stylesheet"
@@ -283,18 +282,26 @@
       display: flex;
       margin-bottom: 1.5rem;
       border-bottom: 1px solid #ddd;
+      gap: 0;
     }
 
-    .tab {
+    .tab-btn {
       padding: 0.75rem 1.5rem;
       cursor: pointer;
       font-weight: 600;
       color: var(--text-light);
+      border: none;
+      background: transparent;
       border-bottom: 3px solid transparent;
       transition: all 0.3s ease;
+      font-size: 1rem;
     }
 
-    .tab.active {
+    .tab-btn:hover {
+      color: var(--accent);
+    }
+
+    .tab-btn.active {
       color: var(--accent);
       border-bottom: 3px solid var(--accent);
     }
@@ -305,13 +312,6 @@
 
     .tab-content.active {
       display: block;
-    }
-
-    .model-info {
-      font-size: 0.9rem;
-      color: var(--text-light);
-      margin-top: 0.5rem;
-      font-style: italic;
     }
 
     .patterns-list {
@@ -326,6 +326,8 @@
       border-radius: 4px;
       border-left: 2px solid var(--danger);
       font-family: monospace;
+      display: inline-block;
+      margin: 2px;
     }
 
     @media (max-width: 768px) {
@@ -344,6 +346,15 @@
       .card {
         padding: 1rem;
       }
+
+      .tabs {
+        flex-wrap: wrap;
+      }
+
+      .tab-btn {
+        flex: 1;
+        min-width: 120px;
+      }
     }
   </style>
 </head>
@@ -354,14 +365,21 @@
         <i class="fas fa-shield-alt"></i>
         <h1>Intelligent Threat Identification System</h1>
       </div>
-      <p>Detect phishing URLs and SQL injection attacks with AI-powered analysis.</p>
+      <p>Detect phishing URLs, SQL injection, and XSS attacks with AI-powered analysis.</p>
     </div>
   </header>
 
   <main class="container">
     <div class="tabs">
-      <div id="tab-phishing" class="tab active">Phishing URL Detection</div>
-      <div id="tab-sqli" class="tab">SQL Injection Detection</div>
+      <button class="tab-btn active" data-tab="phishing-section">
+        <i class="fas fa-link"></i> Phishing Detection
+      </button>
+      <button class="tab-btn" data-tab="sqli-section">
+        <i class="fas fa-database"></i> SQL Injection
+      </button>
+      <button class="tab-btn" data-tab="xss-section">
+        <i class="fas fa-code"></i> XSS Detection
+      </button>
     </div>
 
     <!-- Phishing URL Detection Tab -->
@@ -375,7 +393,9 @@
           <label for="urlInput">Enter URL to analyze:</label>
           <input type="text" id="urlInput" placeholder="https://example.com" />
         </div>
-        <button id="btnPredictPhishing" class="btn">Analyze URL</button>
+        <button id="btnPredictPhishing" class="btn">
+          <i class="fas fa-search"></i> Analyze URL
+        </button>
 
         <div id="loadingPhishing" class="loading">
           <div class="spinner"></div>
@@ -385,15 +405,13 @@
         <div id="resultPhishing" class="result">
           <div class="result-header">
             <i id="resultIconPhishing" class="fas"></i>
-            <span id="resultTextPhishing"></span>
+            <strong id="resultTextPhishing"></strong>
           </div>
           <div>Confidence: <span id="confidencePhishing"></span>%</div>
           <div class="confidence-meter">
             <div id="confidenceLevelPhishing" class="confidence-level" style="width: 0%;"></div>
           </div>
-
           <ul id="featuresListPhishing" class="features-list"></ul>
-          <div id="featuresContainerPhishing" style="display:none;"></div>
         </div>
       </div>
     </section>
@@ -409,17 +427,19 @@
           <label for="sqlInput">Enter SQL query to analyze:</label>
           <textarea id="sqlInput" placeholder="SELECT * FROM users WHERE id = 1"></textarea>
         </div>
-        <button id="btnPredictSQLi" class="btn">Analyze SQL</button>
+        <button id="btnPredictSQLi" class="btn">
+          <i class="fas fa-search"></i> Analyze SQL Query
+        </button>
 
         <div id="loadingSQLi" class="loading">
           <div class="spinner"></div>
-          <p>Analyzing SQL...</p>
+          <p>Analyzing SQL query...</p>
         </div>
 
         <div id="resultSQLi" class="result">
           <div class="result-header">
             <i id="resultIconSQLi" class="fas"></i>
-            <span id="resultTextSQLi"></span>
+            <strong id="resultTextSQLi"></strong>
           </div>
           <div>Confidence: <span id="confidenceSQLi"></span>%</div>
           <div class="confidence-meter">
@@ -429,189 +449,288 @@
         </div>
       </div>
     </section>
+
+    <!-- XSS Detection Tab -->
+    <section id="xss-section" class="tab-content">
+      <div class="card">
+        <div class="card-header">
+          <i class="fas fa-code"></i>
+          <h2>XSS Attack Detection</h2>
+        </div>
+        <div class="form-group">
+          <label for="xssInput">Enter Payload to analyze:</label>
+          <textarea id="xssInput" placeholder="<script>alert('XSS')</script>"></textarea>
+        </div>
+        <button id="btnPredictXSS" class="btn">
+          <i class="fas fa-search"></i> Analyze Payload
+        </button>
+
+        <div id="loadingXSS" class="loading">
+          <div class="spinner"></div>
+          <p>Analyzing payload...</p>
+        </div>
+
+        <div id="resultXSS" class="result">
+          <div class="result-header">
+            <i id="resultIconXSS" class="fas"></i>
+            <strong id="resultTextXSS"></strong>
+          </div>
+          <div>Confidence: <span id="confidenceXSS"></span>%</div>
+          <div class="confidence-meter">
+            <div id="confidenceLevelXSS" class="confidence-level" style="width: 0%;"></div>
+          </div>
+        </div>
+      </div>
+    </section>
   </main>
 
   <footer>
-    &copy; 2025 Intelligent Threat Identification System
+    <p>&copy; 2025 Intelligent Threat Identification System | Powered by AI</p>
   </footer>
+
   <script>
-  // Tab switching
-  const tabPhishing = document.getElementById('tab-phishing');
-  const tabSQLi = document.getElementById('tab-sqli');
-  const phishingSection = document.getElementById('phishing-section');
-  const sqliSection = document.getElementById('sqli-section');
-
-  tabPhishing.addEventListener('click', () => {
-    tabPhishing.classList.add('active');
-    tabSQLi.classList.remove('active');
-    phishingSection.classList.add('active');
-    sqliSection.classList.remove('active');
-  });
-
-  tabSQLi.addEventListener('click', () => {
-    tabSQLi.classList.add('active');
-    tabPhishing.classList.remove('active');
-    sqliSection.classList.add('active');
-    phishingSection.classList.remove('active');
-  });
-
-  // Phishing URL Detection
-  const btnPredictPhishing = document.getElementById('btnPredictPhishing');
-  const urlInput = document.getElementById('urlInput');
-  const loadingPhishing = document.getElementById('loadingPhishing');
-  const resultPhishing = document.getElementById('resultPhishing');
-  const resultIconPhishing = document.getElementById('resultIconPhishing');
-  const resultTextPhishing = document.getElementById('resultTextPhishing');
-  const confidencePhishing = document.getElementById('confidencePhishing');
-  const confidenceLevelPhishing = document.getElementById('confidenceLevelPhishing');
-  const featuresListPhishing = document.getElementById('featuresListPhishing');
-
-  btnPredictPhishing.addEventListener('click', predictPhishing);
-
-  async function predictPhishing() {
-    const url = urlInput.value.trim();
-    if (!url) {
-      alert('Please enter a URL.');
-      return;
-    }
-
-    loadingPhishing.style.display = 'block';
-    resultPhishing.style.display = 'none';
-
-    try {
-      const response = await fetch('/predict/phishing', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ url })
+    // Tab switching functionality
+    document.addEventListener('DOMContentLoaded', function() {
+      const tabButtons = document.querySelectorAll('.tab-btn');
+      const tabContents = document.querySelectorAll('.tab-content');
+      
+      tabButtons.forEach(button => {
+        button.addEventListener('click', function() {
+          const targetTab = this.getAttribute('data-tab');
+          
+          // Remove active class from all buttons and contents
+          tabButtons.forEach(btn => btn.classList.remove('active'));
+          tabContents.forEach(content => content.classList.remove('active'));
+          
+          // Add active class to clicked button and corresponding content
+          this.classList.add('active');
+          document.getElementById(targetTab).classList.add('active');
+        });
       });
+    });
 
-      if (!response.ok) {
-        throw new Error('Network response was not ok');
+    // Phishing URL Detection
+    const btnPredictPhishing = document.getElementById('btnPredictPhishing');
+    const urlInput = document.getElementById('urlInput');
+    const loadingPhishing = document.getElementById('loadingPhishing');
+    const resultPhishing = document.getElementById('resultPhishing');
+    const resultIconPhishing = document.getElementById('resultIconPhishing');
+    const resultTextPhishing = document.getElementById('resultTextPhishing');
+    const confidencePhishing = document.getElementById('confidencePhishing');
+    const confidenceLevelPhishing = document.getElementById('confidenceLevelPhishing');
+    const featuresListPhishing = document.getElementById('featuresListPhishing');
+
+    btnPredictPhishing.addEventListener('click', predictPhishing);
+
+    async function predictPhishing() {
+      const url = urlInput.value.trim();
+      if (!url) {
+        alert('Please enter a URL.');
+        return;
       }
 
-      const data = await response.json();
+      loadingPhishing.style.display = 'block';
+      resultPhishing.style.display = 'none';
 
-      loadingPhishing.style.display = 'none';
-      resultPhishing.style.display = 'block';
+      try {
+        const response = await fetch('/predict/phishing', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ url })
+        });
 
-      const pred = data.prediction;   // which is 0 or 1
-      const confidence = (data.confidence * 100).toFixed(2);
-      const features = data.features || [];
+        if (!response.ok) {
+          throw new Error('Network response was not ok');
+        }
 
-      let statusClass = '';
-      let iconClass = '';
-      let resultMessage = '';
+        const data = await response.json();
 
-      console.log('Phishing prediction:', pred);
-      console.log('Confidence:', confidence);
-      console.log('Features:', features);
+        loadingPhishing.style.display = 'none';
+        resultPhishing.style.display = 'block';
 
-      if (pred === 0) {
-        statusClass = 'danger';
-        iconClass = 'fa-exclamation-triangle';
-        resultMessage = 'Phishing URL Detected!';
-      } else {
-        statusClass = 'success';
-        iconClass = 'fa-check-circle';
-        resultMessage = 'Legitimate URL Detected!';
+        const pred = data.prediction;
+        const confidence = (data.confidence * 100).toFixed(2);
+        const features = data.features || [];
+
+        let statusClass = '';
+        let iconClass = '';
+        let resultMessage = '';
+
+        if (pred === 0) {
+          statusClass = 'danger';
+          iconClass = 'fa-exclamation-triangle';
+          resultMessage = 'Phishing URL Detected!';
+        } else {
+          statusClass = 'success';
+          iconClass = 'fa-check-circle';
+          resultMessage = 'Legitimate URL';
+        }
+
+        resultPhishing.className = `result ${statusClass}`;
+        resultIconPhishing.className = `fas ${iconClass}`;
+        resultTextPhishing.textContent = resultMessage;
+        confidencePhishing.textContent = confidence;
+        confidenceLevelPhishing.style.width = `${confidence}%`;
+
+        featuresListPhishing.innerHTML = '';
+        if (features.length > 0) {
+          features.forEach((feature) => {
+            const li = document.createElement('li');
+            li.textContent = feature;
+            featuresListPhishing.appendChild(li);
+          });
+        }
+      } catch (error) {
+        loadingPhishing.style.display = 'none';
+        alert('Error: ' + error.message);
       }
-
-      resultPhishing.className = `result ${statusClass}`;
-      resultIconPhishing.className = `fas ${iconClass}`;
-      resultTextPhishing.textContent = resultMessage;
-      confidencePhishing.textContent = confidence;
-      confidenceLevelPhishing.style.width = `${confidence}%`;
-
-      featuresListPhishing.innerHTML = '';
-      features.forEach((feature) => {
-        const li = document.createElement('li');
-        li.textContent = feature;
-        featuresListPhishing.appendChild(li);
-      });
-    } catch (error) {
-      loadingPhishing.style.display = 'none';
-      alert('Error: ' + error.message);
-    }
-  }
-
-  // SQL Injection Detection
-  const btnPredictSQLi = document.getElementById('btnPredictSQLi');
-  const sqlInput = document.getElementById('sqlInput');
-  const loadingSQLi = document.getElementById('loadingSQLi');
-  const resultSQLi = document.getElementById('resultSQLi');
-  const resultIconSQLi = document.getElementById('resultIconSQLi');
-  const resultTextSQLi = document.getElementById('resultTextSQLi');
-  const confidenceSQLi = document.getElementById('confidenceSQLi');
-  const confidenceLevelSQLi = document.getElementById('confidenceLevelSQLi');
-  const patternsSQLi = document.getElementById('patternsSQLi');
-
-  btnPredictSQLi.addEventListener('click', predictSQLi);
-
-  async function predictSQLi() {
-    const sql = sqlInput.value.trim();
-    if (!sql) {
-      alert('Please enter a SQL query.');
-      return;
     }
 
-    loadingSQLi.style.display = 'block';
-    resultSQLi.style.display = 'none';
+    // SQL Injection Detection
+    const btnPredictSQLi = document.getElementById('btnPredictSQLi');
+    const sqlInput = document.getElementById('sqlInput');
+    const loadingSQLi = document.getElementById('loadingSQLi');
+    const resultSQLi = document.getElementById('resultSQLi');
+    const resultIconSQLi = document.getElementById('resultIconSQLi');
+    const resultTextSQLi = document.getElementById('resultTextSQLi');
+    const confidenceSQLi = document.getElementById('confidenceSQLi');
+    const confidenceLevelSQLi = document.getElementById('confidenceLevelSQLi');
+    const patternsSQLi = document.getElementById('patternsSQLi');
 
-    try {
-      const response = await fetch('/predict/sql', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ query: sql })
-      });
+    btnPredictSQLi.addEventListener('click', predictSQLi);
 
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error('Network response was not ok');
+    async function predictSQLi() {
+      const sql = sqlInput.value.trim();
+      if (!sql) {
+        alert('Please enter a SQL query.');
+        return;
       }
 
-      const data = await response.json();
+      loadingSQLi.style.display = 'block';
+      resultSQLi.style.display = 'none';
 
-      loadingSQLi.style.display = 'none';
-      resultSQLi.style.display = 'block';
+      try {
+        const response = await fetch('/predict/sql', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ query: sql })
+        });
 
-      const pred = data.prediction;
-      const confidence = (data.confidence * 100).toFixed(2);
-      const patterns = data.patterns || [];
+        if (!response.ok) {
+          throw new Error('Network response was not ok');
+        }
 
-      let statusClass = '';
-      let iconClass = '';
-      let resultMessage = '';
+        const data = await response.json();
 
-      if (pred === 1) {
-        statusClass = 'danger';
-        iconClass = 'fa-exclamation-triangle';
-        resultMessage = 'SQL Injection Detected!';
-      } else {
-        statusClass = 'success';
-        iconClass = 'fa-check-circle';
-        resultMessage = 'Safe SQL Query Detected!';
+        loadingSQLi.style.display = 'none';
+        resultSQLi.style.display = 'block';
+
+        const pred = data.prediction;
+        const confidence = (data.confidence * 100).toFixed(2);
+        const patterns = data.patterns || [];
+
+        let statusClass = '';
+        let iconClass = '';
+        let resultMessage = '';
+
+        if (pred === 1) {
+          statusClass = 'danger';
+          iconClass = 'fa-exclamation-triangle';
+          resultMessage = 'SQL Injection Detected!';
+        } else {
+          statusClass = 'success';
+          iconClass = 'fa-check-circle';
+          resultMessage = 'Safe SQL Query';
+        }
+
+        resultSQLi.className = `result ${statusClass}`;
+        resultIconSQLi.className = `fas ${iconClass}`;
+        resultTextSQLi.textContent = resultMessage;
+        confidenceSQLi.textContent = confidence;
+        confidenceLevelSQLi.style.width = `${confidence}%`;
+
+        patternsSQLi.innerHTML = '';
+        if (patterns.length > 0) {
+          patterns.forEach((pattern) => {
+            const span = document.createElement('span');
+            span.className = 'pattern-item';
+            span.textContent = pattern;
+            patternsSQLi.appendChild(span);
+          });
+        }
+      } catch (error) {
+        loadingSQLi.style.display = 'none';
+        alert('Error: ' + error.message);
       }
-
-      resultSQLi.className = `result ${statusClass}`;
-      resultIconSQLi.className = `fas ${iconClass}`;
-      resultTextSQLi.textContent = resultMessage;
-      confidenceSQLi.textContent = confidence;
-      confidenceLevelSQLi.style.width = `${confidence}%`;
-
-      patternsSQLi.innerHTML = '';
-      patterns.forEach((pattern) => {
-        const span = document.createElement('span');
-        span.className = 'pattern-item';
-        span.textContent = pattern;
-        patternsSQLi.appendChild(span);
-        patternsSQLi.appendChild(document.createElement('br'));
-      });
-    } catch (error) {
-      loadingSQLi.style.display = 'none';
-      console.error('Full error:', error);
-      alert(`Error: ${error.message}\n\nPlease check the console for details.`);
     }
-  }
-</script>
+
+    // XSS Detection
+    const btnPredictXSS = document.getElementById('btnPredictXSS');
+    const xssInput = document.getElementById('xssInput');
+    const loadingXSS = document.getElementById('loadingXSS');
+    const resultXSS = document.getElementById('resultXSS');
+    const resultIconXSS = document.getElementById('resultIconXSS');
+    const resultTextXSS = document.getElementById('resultTextXSS');
+    const confidenceXSS = document.getElementById('confidenceXSS');
+    const confidenceLevelXSS = document.getElementById('confidenceLevelXSS');
+
+    btnPredictXSS.addEventListener('click', predictXSS);
+
+    async function predictXSS() {
+      const payload = xssInput.value.trim();
+      if (!payload) {
+        alert('Please enter a payload.');
+        return;
+      }
+
+      loadingXSS.style.display = 'block';
+      resultXSS.style.display = 'none';
+
+      try {
+        const response = await fetch('/predict/xss', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ payload })
+        });
+
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({}));
+          throw new Error(errorData.error || 'Network response was not ok');
+        }
+
+        const data = await response.json();
+
+        loadingXSS.style.display = 'none';
+        resultXSS.style.display = 'block';
+
+        const pred = data.prediction;
+        const confidence = (data.confidence * 100).toFixed(2);
+
+        let statusClass = '';
+        let iconClass = '';
+        let message = '';
+
+        if (pred === 1) {
+          statusClass = 'danger';
+          iconClass = 'fa-exclamation-triangle';
+          message = 'XSS Attack Detected!';
+        } else {
+          statusClass = 'success';
+          iconClass = 'fa-check-circle';
+          message = 'Safe Payload';
+        }
+
+        resultXSS.className = `result ${statusClass}`;
+        resultIconXSS.className = `fas ${iconClass}`;
+        resultTextXSS.textContent = message;
+        confidenceXSS.textContent = confidence;
+        confidenceLevelXSS.style.width = `${confidence}%`;
+
+      } catch (err) {
+        loadingXSS.style.display = 'none';
+        alert('Error: ' + err.message);
+      }
+    }
+  </script>
 </body>
 </html>
