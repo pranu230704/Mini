@@ -29,8 +29,7 @@ try:
 
     # ---- Load XSS Detection Model (Random Forest + TF-IDF) ----
     try:
-        with open('models/xss_random_forest_model.pkl', 'rb') as f:
-            xss_model = pickle.load(f)
+        xss_model = joblib.load('models/xss_random_forest_model.pkl')
 
         with open('models/xss_tfidf_vectorizer.pkl', 'rb') as f:
             xss_vectorizer = pickle.load(f)
@@ -92,6 +91,36 @@ def extract_url_features(url):
         print(f"[Feature Extraction Error] {e}")
         return np.zeros(xgb_model.n_features_in_)
 
+def detect_phishing_patterns(url):
+    parsed = urllib.parse.urlparse(url)
+    domain = parsed.netloc.lower()
+    path = parsed.path.lower()
+    query = parsed.query.lower()
+    ext = tldextract.extract(url)
+    patterns = []
+
+    if '@' in url:
+        patterns.append("URL contains @ symbol")
+    if '//' in url[8:]:
+        patterns.append("Possible redirect using //")
+    if re.fullmatch(r"\d{1,3}(\.\d{1,3}){3}", domain.split(':')[0]):
+        patterns.append("IP address used as domain")
+    if len(url) > 120:
+        patterns.append("Very long URL")
+    if domain.count('.') >= 4:
+        patterns.append("Too many subdomains")
+    if '%' in url:
+        patterns.append("Encoded characters in URL")
+
+    phishing_words = ['login', 'signin', 'bank', 'account', 'verify', 'secure', 'update', 'webscr', 'password', 'confirm']
+    has_sensitive_word = any(word in url.lower() for word in phishing_words)
+    has_risky_context = parsed.scheme != 'https' or bool(query) or '-' in domain or len(ext.subdomain.split('.')) > 1
+
+    if has_sensitive_word and has_risky_context:
+        patterns.append("Sensitive keyword in risky URL context")
+
+    return patterns
+
 # === Routes ===
 @app.route('/')
 def index():
@@ -104,6 +133,8 @@ def predict_phishing():
 
     if not url.startswith('http'):
         return jsonify({'error': 'Invalid URL'}), 400
+
+    phishing_patterns = detect_phishing_patterns(url)
 
     features = extract_url_features(url)
     if len(features) != xgb_model.n_features_in_:
@@ -123,11 +154,18 @@ def predict_phishing():
         pred_class = 1  # safe
         confidence = float(safe_prob)
 
+    if phishing_patterns:
+        pred_class = 0
+        confidence = max(float(phishing_prob), 0.95)
+    else:
+        pred_class = 1
+        confidence = max(float(safe_prob), 0.95)
 
     print("[DEBUG] URL:", url)
     print("[DEBUG] Feature Vector Length:", len(features))
     print("[DEBUG] Feature Vector:", features)
     print("[DEBUG] Prediction Probabilities:", pred_probs)
+    print("[DEBUG] Phishing Patterns:", phishing_patterns)
     print("[DEBUG] Prediction Class:", pred_class)
     print("[DEBUG] Confidence Score:", confidence)
     print(f"[DEBUG] Final prediction: {pred_class} ({'Phishing' if pred_class == 0 else 'Safe'})")
@@ -147,18 +185,27 @@ def is_malicious_pattern(query: str) -> list:
 
     if '1=1' in q and re.search(r"\bor\b|\band\b", q):
         patterns.append("Always true condition (1=1)")
-    if re.search(r"--|#", q) and not re.search(r"like\\s+'%--%'", q):
+    if re.search(r"--|#", q) and not re.search(r"like\s+'%--%'", q):
         patterns.append("SQL comment detected")
-    if re.search(r"\\bunion\\b", q) and "select" in q:
+    if re.search(r"\bunion\b", q) and "select" in q:
         patterns.append("UNION keyword detected")
-    if re.search(r";\\s*(drop|delete)", q):
+    if re.search(r";\s*(drop|delete|insert|update|select)", q):
         patterns.append("Stacked query or destructive command")
     if 'sleep(' in q or 'waitfor' in q:
         patterns.append("Time delay function")
     if 'exec(' in q or 'xp_' in q:
         patterns.append("Command execution")
+    if re.search(r"'\s*(or|and)\s+'?\w+'?\s*=\s*'?\w+", q):
+        patterns.append("Boolean SQL injection pattern")
+    if re.search(r"\b(drop|truncate|alter)\s+table\b", q):
+        patterns.append("Destructive SQL command")
 
     return patterns
+
+def looks_like_plain_text(query: str) -> bool:
+    sql_words = r"\b(select|insert|update|delete|drop|union|where|from|values|exec|sleep|waitfor|table)\b"
+    sql_symbols = r"['\";=()#-]"
+    return not re.search(sql_words, query.lower()) and not re.search(sql_symbols, query)
 
 # === SQL Injection Detection Endpoint ===
 @app.route('/predict/sql', methods=['POST'])
@@ -173,6 +220,46 @@ def predict_sql():
         cleaned = ' '.join(query.strip().lower().split())
         patterns = is_malicious_pattern(cleaned)
 
+        # === Confidence Boost for Legitimate Patterns ===
+        # Strong confidence boost for known-safe queries
+        safe_patterns = [
+            r"^select\s+\*\s+from\s+\w+\s+where\s+\w+\s*=\s*['\"].+['\"]$",
+            r"^select\s+[\w\s,.*]+\s+from\s+\w+(\s+where\s+[\w\s.=<>!'\"%]+)?$",
+            r"^insert\s+into\s+\w+\s*\(.+\)\s+values\s*\(.+\)$",
+            r"^update\s+\w+\s+set\s+.+\s+where\s+.+$",
+            r"^delete\s+from\s+\w+\s+where\s+.+$"
+        ]
+
+        if patterns:
+            print(f"Cleaned Query: {cleaned}")
+            print("[SQL Pattern Detected] Forcing malicious.")
+            return jsonify({
+                'prediction': 1,
+                'confidence': 0.95,
+                'patterns': patterns,
+                'preprocessed': cleaned
+            })
+
+        if looks_like_plain_text(cleaned):
+            print(f"Cleaned Query: {cleaned}")
+            print("[Plain Text Detected] Forcing legitimate.")
+            return jsonify({
+                'prediction': 0,
+                'confidence': 0.95,
+                'patterns': patterns,
+                'preprocessed': cleaned
+            })
+
+        for pattern in safe_patterns:
+            if re.fullmatch(pattern, cleaned, flags=re.IGNORECASE):
+                print("[Safe Pattern Detected] Forcing low confidence.")
+                return jsonify({
+                    'prediction': 0,
+                    'confidence': 0.98,
+                    'patterns': patterns,
+                    'preprocessed': cleaned
+                })
+
         seq = tokenizer.texts_to_sequences([cleaned])
         padded = pad_sequences(seq, maxlen=100, padding='post')
         pred = float(sql_model.predict(padded)[0][0])
@@ -180,22 +267,6 @@ def predict_sql():
         # Add these debug prints:
         print(f"Cleaned Query: {cleaned}")
         print(f"Model Prediction (raw): {pred}")
-
-        # === Confidence Boost for Legitimate Patterns ===
-        # Strong confidence boost for known-safe queries
-        safe_patterns = [
-            r"^select\s+\*\s+from\s+\w+\s+where\s+\w+\s*=\s*['\"].+['\"]$",
-            r"^insert\s+into\s+\w+\s*\(.+\)\s+values\s*\(.+\)$",
-            r"^update\s+\w+\s+set\s+.+\s+where\s+.+$",
-            r"^delete\s+from\s+\w+\s+where\s+.+$"
-        ]
-
-        for pattern in safe_patterns:
-            if re.fullmatch(pattern, cleaned, flags=re.IGNORECASE):
-                pred = 0.02  # Treat it as very safe
-                print("[Safe Pattern Detected] Forcing low confidence.")
-                break
-
 
         # === Adjust prediction based on patterns ===
         if patterns:
@@ -282,6 +353,26 @@ def predict_xss():
 
     try:
         clean_payload = payload.strip().lower()
+
+        xss_signature_patterns = [
+            r"<\s*script", r"javascript\s*:", r"vbscript\s*:",
+            r"\bon\w+\s*=", r"<\s*(iframe|img|object|embed)",
+            r"alert\s*\(", r"eval\s*\(", r"document\.(cookie|write)"
+        ]
+
+        has_xss_signature = any(
+            re.search(pattern, clean_payload, flags=re.IGNORECASE)
+            for pattern in xss_signature_patterns
+        )
+
+        if not has_xss_signature and not re.search(r"[<>=()'\";:/\\]", clean_payload):
+            return jsonify({
+                "prediction": 0,
+                "label": "Normal",
+                "confidence": 0.95,
+                "preprocessed": clean_payload
+            })
+
         vectorized = xss_vectorizer.transform([clean_payload])
         pred = xss_model.predict(vectorized)[0]
         prob = xss_model.predict_proba(vectorized)[0][pred]
